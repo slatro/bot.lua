@@ -149,3 +149,40 @@ Handlers.add(
     end
   end
 )
+
+-- Yeni stratejiye göre kararlar alacak fonksiyon
+function decideNextAction()
+  local player = LatestGameState.Players[ao.id]
+  local targetInRange = false
+  local bestTarget = nil
+  
+  -- Yeni strateji: Eğer enerji yeterliyse ve yakınlarda düşman varsa saldırı yap.
+  if player.energy > 5 then
+    -- Saldırı için uygun hedefi bul
+    for target, state in pairs(LatestGameState.Players) do
+      if target ~= ao.id and inRange(player.x, player.y, state.x, state.y, 1) then
+        targetInRange = true
+        if not bestTarget or state.health < bestTarget.health or (state.health == bestTarget.health and inRange(player.x, player.y, state.x, state.y, 1) < inRange(player.x, player.y, bestTarget.x, bestTarget.y, 1)) then
+          bestTarget = state
+        end
+      end
+    end
+    -- Eğer hedef varsa saldırı yap
+    if targetInRange then
+      print(colors.red .. "Düşman var. Saldırı yapılıyor." .. colors.reset)
+      ao.send({
+        Target = Game,
+        Action = "PlayerAttack",
+        Player = ao.id,
+        AttackEnergy = tostring(player.energy),
+      })
+      return
+    end
+  end
+  
+  -- Eğer enerji azsa veya yakınlarda düşman yoksa rastgele bir yöne hareket et.
+  print(colors.red .. "Düşman yok veya enerji az. Rastgele hareket ediliyor." .. colors.reset)
+  local directions = {"Up", "Down", "Left", "Right"}
+  local randomDirection = directions[math.random(#directions)]
+  ao.send({Target = Game, Action = "PlayerMove", Player = ao.id, Direction = randomDirection})
+end
